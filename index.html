@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachable Machine Audio Model</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            transition: background 0.5s, color 0.5s;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teachable Machine Audio Model</h1>
+	<h2>Snap fingers or slap to change back ground color from black to white<h2>
+    <button type="button" onclick="init()">Start</button>
+    <div id="label-container"></div>
+    
+    <script>
+        const URL = "https://teachablemachine.withgoogle.com/models/_gAqjPgnC/";
+        let recognizer;
+        let isBlack = false;
+
+        async function createModel() {
+            const checkpointURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            recognizer = speechCommands.create("BROWSER_FFT", undefined, checkpointURL, metadataURL);
+            await recognizer.ensureModelLoaded();
+            return recognizer;
+        }
+
+        async function init() {
+            recognizer = await createModel();
+            const classLabels = recognizer.wordLabels();
+            console.log("Class Labels:", classLabels);
+            const labelContainer = document.getElementById("label-container");
+            labelContainer.innerHTML = "";
+
+            for (let i = 0; i < classLabels.length; i++) {
+                labelContainer.appendChild(document.createElement("div"));
+            }
+
+            recognizer.listen(result => {
+                let highestScore = 0;
+                let detectedClass = "";
+
+                for (let i = 0; i < classLabels.length; i++) {
+                    const classPrediction = `${classLabels[i]}: ${result.scores[i].toFixed(2)}`;
+                    labelContainer.childNodes[i].innerHTML = classPrediction;
+
+                    if (result.scores[i] > highestScore) {
+                        highestScore = result.scores[i];
+                        detectedClass = classLabels[i];
+                    }
+                }
+
+                console.log(`Detected: ${detectedClass} | Score: ${highestScore}`);
+
+                if (highestScore > 0.6 && detectedClass === "Class 2") {
+                    isBlack = !isBlack;
+                    document.body.style.background = isBlack ? "black" : "white";
+                    document.body.style.color = isBlack ? "white" : "black";
+                    console.log(`✅ Background changed to ${isBlack ? "black" : "white"}`);
+                } else {
+                    console.log("❌ No valid sound detected");
+                }
+            }, {
+                probabilityThreshold: 0.85,
+                overlapFactor: 0.35
+            });
+        }
+    </script>
+</body>
+</html>
